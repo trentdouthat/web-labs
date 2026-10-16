@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-900">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RGB Color Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background-color: #374151;
+            outline: none;
+            opacity: 0.9;
+            transition: opacity .2s;
+        }
+        input[type="range"]:hover { opacity: 1; }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            cursor: pointer;
+        }
+
+        #slider-r::-webkit-slider-thumb { background-color: #f87171; }
+        #slider-g::-webkit-slider-thumb { background-color: #4ade80; }
+        #slider-b::-webkit-slider-thumb { background-color: #60a5fa; }
+
+        /* Hide arrows in number inputs */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+    </style>
+</head>
+<body class="h-full flex items-center justify-center font-sans antialiased text-gray-200 p-4">
+
+    <div class="bg-gray-800 p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-lg">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-white">RGB Color Viewer</h1>
+            <p id="color-name" class="text-blue-400 font-medium mt-1 italic">Loading colors...</p>
+        </header>
+
+        <!-- Color Preview Box -->
+        <div id="color-preview" class="w-full h-40 rounded-xl border-4 border-gray-700 shadow-inner transition-colors duration-150 mb-8 flex items-center justify-center">
+            <span id="contrast-text" class="font-bold text-xl uppercase tracking-widest drop-shadow-sm">Preview</span>
+        </div>
+
+        <!-- Controls Container -->
+        <div class="space-y-6">
+            <!-- Red Section -->
+            <div class="grid grid-cols-12 gap-4 items-center">
+                <label class="col-span-2 text-red-400 font-bold">R</label>
+                <input type="range" id="slider-r" min="0" max="255" value="128" class="col-span-7">
+                <input type="number" id="input-r" min="0" max="255" value="128" class="col-span-3 bg-gray-700 text-white text-center rounded-md py-1 font-mono focus:ring-2 focus:ring-red-500 outline-none">
+            </div>
+
+            <!-- Green Section -->
+            <div class="grid grid-cols-12 gap-4 items-center">
+                <label class="col-span-2 text-green-400 font-bold">G</label>
+                <input type="range" id="slider-g" min="0" max="255" value="128" class="col-span-7">
+                <input type="number" id="input-g" min="0" max="255" value="128" class="col-span-3 bg-gray-700 text-white text-center rounded-md py-1 font-mono focus:ring-2 focus:ring-green-500 outline-none">
+            </div>
+
+            <!-- Blue Section -->
+            <div class="grid grid-cols-12 gap-4 items-center">
+                <label class="col-span-2 text-blue-400 font-bold">B</label>
+                <input type="range" id="slider-b" min="0" max="255" value="128" class="col-span-7">
+                <input type="number" id="input-b" min="0" max="255" value="128" class="col-span-3 bg-gray-700 text-white text-center rounded-md py-1 font-mono focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+        </div>
+
+        <!-- Hex & Utility -->
+        <div class="mt-8 grid grid-cols-2 gap-4">
+            <div class="bg-gray-900 p-4 rounded-lg text-center">
+                <span class="block text-xs uppercase text-gray-500 font-bold mb-1">Hex Code</span>
+                <input type="text" id="input-hex" value="#808080" class="w-full bg-transparent text-white text-xl font-mono text-center outline-none focus:text-blue-400 transition-colors">
+            </div>
+            <div class="bg-gray-900 p-4 rounded-lg text-center">
+                <span class="block text-xs uppercase text-gray-500 font-bold mb-1">RGB CSS</span>
+                <span id="display-rgb" class="text-white text-sm font-mono block mt-2">rgb(128, 128, 128)</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data subset for naming (normally you'd fetch a larger JSON)
+        const colorPalette = [
+            {name: "Black", r: 0, g: 0, b: 0},
+            {name: "White", r: 255, g: 255, b: 255},
+            {name: "Red", r: 255, g: 0, b: 0},
+            {name: "Lime", r: 0, g: 255, b: 0},
+            {name: "Blue", r: 0, g: 0, b: 255},
+            {name: "Yellow", r: 255, g: 255, b: 0},
+            {name: "Cyan", r: 0, g: 255, b: 255},
+            {name: "Magenta", r: 255, g: 0, b: 255},
+            {name: "Silver", r: 192, g: 192, b: 192},
+            {name: "Gray", r: 128, g: 128, b: 128},
+            {name: "Maroon", r: 128, g: 0, b: 0},
+            {name: "Olive", r: 128, g: 128, b: 0},
+            {name: "Green", r: 0, g: 128, b: 0},
+            {name: "Purple", r: 128, g: 0, b: 128},
+            {name: "Teal", r: 0, g: 128, b: 128},
+            {name: "Navy", r: 0, g: 0, b: 128},
+            {name: "Orange", r: 255, g: 165, b: 0},
+            {name: "Sky Blue", r: 135, g: 206, b: 235},
+            {name: "Gold", r: 255, g: 215, b: 0},
+            {name: "Hot Pink", r: 255, g: 105, b: 180},
+            {name: "Crimson", r: 220, g: 20, b: 60},
+            {name: "Slate Blue", r: 106, g: 90, b: 205},
+            {name: "Chocolate", r: 210, g: 105, b: 30},
+            {name: "Forest Green", r: 34, g: 139, b: 34},
+            {name: "Royal Blue", r: 65, g: 105, b: 225},
+            {name: "Indian Red", r: 205, g: 92, b: 92},
+            {name: "Beige", r: 245, g: 245, b: 220},
+            {name: "Coral", r: 255, g: 127, b: 80},
+            {name: "Ivory", r: 255, g: 255, b: 240},
+            {name: "Khaki", r: 240, g: 230, b: 140},
+            {name: "Lavender", r: 230, g: 230, b: 250},
+            {name: "Salmon", r: 250, g: 128, b: 114}
+        ];
+
+        const elements = {
+            sliders: { r: document.getElementById('slider-r'), g: document.getElementById('slider-g'), b: document.getElementById('slider-b') },
+            inputs: { r: document.getElementById('input-r'), g: document.getElementById('input-g'), b: document.getElementById('input-b') },
+            hex: document.getElementById('input-hex'),
+            preview: document.getElementById('color-preview'),
+            rgbDisplay: document.getElementById('display-rgb'),
+            nameDisplay: document.getElementById('color-name'),
+            contrastText: document.getElementById('contrast-text')
+        };
+
+        function componentToHex(c) {
+            const hex = c.toString(16);
+            return hex.length === 1 ? "0" + hex : hex;
+        }
+
+        function rgbToHex(r, g, b) {
+            return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+        }
+
+        function hexToRgb(hex) {
+            const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+            hex = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function getClosestColorName(r, g, b) {
+            let minDistance = Infinity;
+            let closestName = "Custom Color";
+
+            colorPalette.forEach(color => {
+                // Euclidean distance in 3D space
+                const distance = Math.sqrt(
+                    Math.pow(r - color.r, 2) +
+                    Math.pow(g - color.g, 2) +
+                    Math.pow(b - color.b, 2)
+                );
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestName = color.name;
+                }
+            });
+            
+            // If it's a perfect match, just show the name, otherwise show "Near [Name]"
+            return minDistance === 0 ? closestName : `Near ${closestName}`;
+        }
+
+        function updateUI(source) {
+            let r, g, b;
+
+            if (source === 'hex') {
+                const rgb = hexToRgb(elements.hex.value);
+                if (!rgb) return; // Invalid hex, don't update
+                r = rgb.r; g = rgb.g; b = rgb.b;
+                // Sync sliders and inputs
+                elements.sliders.r.value = elements.inputs.r.value = r;
+                elements.sliders.g.value = elements.inputs.g.value = g;
+                elements.sliders.b.value = elements.inputs.b.value = b;
+            } else {
+                r = parseInt(elements.sliders.r.value);
+                g = parseInt(elements.sliders.g.value);
+                b = parseInt(elements.sliders.b.value);
+                
+                // Sync inputs
+                elements.inputs.r.value = r;
+                elements.inputs.g.value = g;
+                elements.inputs.b.value = b;
+                
+                // Sync hex
+                elements.hex.value = rgbToHex(r, g, b).toUpperCase();
+            }
+
+            const rgbStr = `rgb(${r}, ${g}, ${b})`;
+            elements.preview.style.backgroundColor = rgbStr;
+            elements.rgbDisplay.textContent = rgbStr;
+            elements.nameDisplay.textContent = getClosestColorName(r, g, b);
+
+            // Perceptive luminance to switch text color between black/white
+            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            elements.contrastText.style.color = luminance > 0.5 ? '#1f2937' : '#f3f4f6';
+        }
+
+        // Event Listeners
+        Object.keys(elements.sliders).forEach(key => {
+            elements.sliders[key].addEventListener('input', () => updateUI('slider'));
+            elements.inputs[key].addEventListener('input', (e) => {
+                let val = parseInt(e.target.value);
+                if (isNaN(val)) val = 0;
+                if (val > 255) val = 255;
+                if (val < 0) val = 0;
+                elements.sliders[key].value = val;
+                updateUI('input');
+            });
+        });
+
+        elements.hex.addEventListener('input', () => updateUI('hex'));
+        
+        // Initialize
+        updateUI('slider');
+    </script>
+</body>
+</html>
