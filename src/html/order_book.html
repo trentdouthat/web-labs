@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Limit Order Book Matching Engine — Trent Douthat</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --bid-green: #22c55e;
+      --bid-bg: rgba(34, 197, 94, 0.14);
+      --ask-red: #ef4444;
+      --ask-bg: rgba(239, 68, 68, 0.14);
+      --mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 1.5rem;
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .top-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .top-nav a {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    .top-nav a:hover { text-decoration: underline; }
+    header { margin-bottom: 1.5rem; }
+    header h1 { font-size: 1.75rem; font-weight: 700; }
+    header p { color: var(--muted); font-size: 0.95rem; margin-top: 0.25rem; }
+
+    /* Stats Banner */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .stat-label { font-size: 0.75rem; text-transform: uppercase; color: var(--muted); letter-spacing: 0.05em; }
+    .stat-val { font-family: var(--mono); font-size: 1.4rem; font-weight: 700; margin-top: 0.25rem; }
+    .bid-text { color: var(--bid-green); }
+    .ask-text { color: var(--ask-red); }
+    .accent-text { color: var(--accent); }
+
+    /* Main Grid */
+    .workspace {
+      display: grid;
+      grid-template-columns: 320px 1fr 340px;
+      gap: 1.25rem;
+    }
+    @media (max-width: 980px) {
+      .workspace { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Order Ticket Controls */
+    .side-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .side-btn {
+      padding: 0.65rem;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--muted);
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .side-btn.active-buy {
+      background: rgba(34, 197, 94, 0.2);
+      border-color: var(--bid-green);
+      color: var(--bid-green);
+    }
+    .side-btn.active-sell {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: var(--ask-red);
+      color: var(--ask-red);
+    }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 0.35rem; }
+    .form-group input {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 1rem;
+    }
+    .form-group input:focus { outline: none; border-color: var(--accent); }
+    .submit-btn {
+      width: 100%;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      color: #0f172a;
+      background: var(--bid-green);
+      transition: opacity 0.15s;
+    }
+    .submit-btn.sell-mode { background: var(--ask-red); color: #fff; }
+    .submit-btn:hover { opacity: 0.9; }
+
+    .preset-section {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+    .preset-section h4 { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.65rem; text-transform: uppercase; }
+    .preset-btn {
+      width: 100%;
+      text-align: left;
+      padding: 0.55rem 0.75rem;
+      margin-bottom: 0.5rem;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Order Book Ladder */
+    .ladder-header, .ladder-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.2fr;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      padding: 0.35rem 0.5rem;
+      position: relative;
+    }
+    .ladder-header {
+      color: var(--muted);
+      font-size: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0.25rem;
+    }
+    .ladder-row {
+      margin: 2px 0;
+      border-radius: 4px;
+      overflow: hidden;
+      z-index: 1;
+    }
+    .depth-bar {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      right: 0;
+      z-index: -1;
+      transition: width 0.2s ease;
+    }
+    .ask-bar { background: var(--ask-bg); }
+    .bid-bar { background: var(--bid-bg); }
+    .spread-divider {
+      text-align: center;
+      padding: 0.5rem;
+      margin: 0.4rem 0;
+      background: #0f172a;
+      border-top: 1px dashed var(--border);
+      border-bottom: 1px dashed var(--border);
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      color: var(--accent);
+    }
+    .text-right { text-align: right; }
+
+    /* Trade Tape & Resting Queue */
+    .tape-list {
+      flex: 1;
+      max-height: 440px;
+      overflow-y: auto;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+    }
+    .tape-item {
+      padding: 0.5rem;
+      border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .tape-item:first-child {
+      background: rgba(56, 189, 248, 0.08);
+    }
+    .badge {
+      font-size: 0.7rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      background: #0f172a;
+      color: var(--muted);
+    }
+    .empty-msg {
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 2rem 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav class="top-nav">
+      <a href="/html/">&larr; Back to Interactive Labs</a>
+      <span style="color: var(--muted); font-size: 0.85rem;">Deterministic Price-Time Priority (FIFO)</span>
+    </nav>
+
+    <header>
+      <h1>Limit Order Book &amp; Matching Engine</h1>
+      <p>Interactive client-side simulation of our exchange matching engine: price-time priority, resting order price improvement, and partial executions.</p>
+    </header>
+
+    <!-- Live Market Metrics -->
+    <section class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-label">Symbol</div>
+        <div class="stat-val accent-text">CBOE:TEST</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Best Bid (Inside Buy)</div>
+        <div class="stat-val bid-text" id="stat-bid">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Best Ask (Inside Offer)</div>
+        <div class="stat-val ask-text" id="stat-ask">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Bid-Ask Spread</div>
+        <div class="stat-val" id="stat-spread">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Last Trade Price</div>
+        <div class="stat-val accent-text" id="stat-last">--</div>
+      </div>
+    </section>
+
+    <main class="workspace">
+      <!-- Column 1: Order Entry & Scenarios -->
+      <section class="panel">
+        <div class="panel-title">Submit Limit Order</div>
+
+        <div class="side-toggle">
+          <button type="button" id="btn-side-buy" class="side-btn active-buy" onclick="setSide('BUY')">BUY (BID)</button>
+          <button type="button" id="btn-side-sell" class="side-btn" onclick="setSide('SELL')">SELL (ASK)</button>
+        </div>
+
+        <form id="order-form" onsubmit="handleOrderSubmit(event)">
+          <div class="form-group">
+            <label for="input-price">Limit Price ($)</label>
+            <input type="number" id="input-price" step="0.50" min="1.00" max="10000.00" value="100.00" required>
+          </div>
+          <div class="form-group">
+            <label for="input-qty">Quantity (Shares)</label>
+            <input type="number" id="input-qty" step="10" min="1" max="100000" value="50" required>
+          </div>
+          <button type="submit" id="btn-submit" class="submit-btn">Place BUY Limit Order</button>
+        </form>
+
+        <div class="preset-section">
+          <h4>Interactive Scenarios</h4>
+          <button class="preset-btn" onclick="seedDefaultBook()">1. Reset &amp; Seed Standard Book</button>
+          <button class="preset-btn" onclick="scenarioAggressiveBuyer()">2. Cross Spread: Buyer Pays $102 (Price Improvement)</button>
+          <button class="preset-btn" onclick="scenarioPartialSweep()">3. Multi-Level Sweep (Buy 180 Shares @ $103)</button>
+          <button class="preset-btn" onclick="clearBook()">4. Clear Entire Order Book</button>
+        </div>
+      </section>
+
+      <!-- Column 2: Visual Depth Ladder -->
+      <section class="panel">
+        <div class="panel-title">
+          <span>Order Book Depth Ladder</span>
+          <span class="badge">Aggregated by Price Level</span>
+        </div>
+
+        <div class="ladder-header">
+          <span>PRICE ($)</span>
+          <span class="text-right">SHARES</span>
+          <span class="text-right">ORDERS (FIFO)</span>
+        </div>
+
+        <!-- Asks (Sorted highest at top down to Best Ask at bottom) -->
+        <div id="asks-container"></div>
+
+        <!-- Spread Bar -->
+        <div class="spread-divider" id="ladder-spread">SPREAD: --</div>
+
+        <!-- Bids (Sorted Best Bid at top down to lowest at bottom) -->
+        <div id="bids-container"></div>
+      </section>
+
+      <!-- Column 3: Execution Tape -->
+      <section class="panel">
+        <div class="panel-title">
+          <span>Matched Execution Tape</span>
+          <span class="badge" id="trade-count-badge">0 Trades</span>
+        </div>
+        <div class="tape-list" id="trade-tape">
+          <div class="empty-msg">No executions yet. Cross the spread to trigger a trade.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // =========================================================================
+    // Deterministic Price-Time Priority Matching Engine (Ported from Python)
+    // =========================================================================
+    class MatchingEngine {
+      constructor(symbol = "CBOE:TEST") {
+        this.symbol = symbol;
+        this.bids = []; // Descending price, ascending timestamp
+        this.asks = []; // Ascending price, ascending timestamp
+        this.trades = [];
+        this.orderSeq = 1;
+        this.tradeSeq = 1;
+      }
+
+      get bestBid() { return this.bids.length > 0 ? this.bids[0].price : null; }
+      get bestAsk() { return this.asks.length > 0 ? this.asks[0].price : null; }
+      get spread() {
+        if (this.bestBid !== null && this.bestAsk !== null) {
+          return +(this.bestAsk - this.bestBid).toFixed(2);
+        }
+        return null;
+      }
+
+      processOrder(side, price, quantity) {
+        const order = {
+          orderId: `ORD-${this.orderSeq++}`,
+          side: side,
+          price: Number(price),
+          quantity: Number(quantity),
+          remainingQty: Number(quantity),
+          timestamp: performance.now()
+        };
+
+        const executedTrades = [];
+
+        if (side === "BUY") {
+          while (this.asks.length > 0 && order.remainingQty > 0) {
+            const bestAsk = this.asks[0];
+            if (bestAsk.price > order.price) break; // Spread not crossed
+
+            // Resting order rule: execute at the resting seller's price
+            const matchPrice = bestAsk.price;
+            const matchQty = Math.min(order.remainingQty, bestAsk.remainingQty);
+
+            const trade = {
+              tradeId: `TRD-${this.tradeSeq++}`,
+              price: matchPrice,
+              quantity: matchQty,
+              buyerId: order.orderId,
+              sellerId: bestAsk.orderId,
+              aggressor: "BUY",
+              time: new Date().toLocaleTimeString()
+            };
+            executedTrades.push(trade);
+            this.trades.unshift(trade);
+
+            order.remainingQty -= matchQty;
+            bestAsk.remainingQty -= matchQty;
+
+            if (bestAsk.remainingQty === 0) {
+              this.asks.shift();
+            }
+          }
+          if (order.remainingQty > 0) {
+            this._insertBid(order);
+          }
+        } else {
+          while (this.bids.length > 0 && order.remainingQty > 0) {
+            const bestBid = this.bids[0];
+            if (bestBid.price < order.price) break;
+
+            // Resting order rule: execute at the resting buyer's price
+            const matchPrice = bestBid.price;
+            const matchQty = Math.min(order.remainingQty, bestBid.remainingQty);
+
+            const trade = {
+              tradeId: `TRD-${this.tradeSeq++}`,
+              price: matchPrice,
+              quantity: matchQty,
+              buyerId: bestBid.orderId,
+              sellerId: order.orderId,
+              aggressor: "SELL",
+              time: new Date().toLocaleTimeString()
+            };
+            executedTrades.push(trade);
+            this.trades.unshift(trade);
+
+            order.remainingQty -= matchQty;
+            bestBid.remainingQty -= matchQty;
+
+            if (bestBid.remainingQty === 0) {
+              this.bids.shift();
+            }
+          }
+          if (order.remainingQty > 0) {
+            this._insertAsk(order);
+          }
+        }
+        return executedTrades;
+      }
+
+      _insertBid(order) {
+        let idx = 0;
+        while (idx < this.bids.length) {
+          if (order.price > this.bids[idx].price) break;
+          idx++;
+        }
+        this.bids.splice(idx, 0, order);
+      }
+
+      _insertAsk(order) {
+        let idx = 0;
+        while (idx < this.asks.length) {
+          if (order.price < this.asks[idx].price) break;
+          idx++;
+        }
+        this.asks.splice(idx, 0, order);
+      }
+    }
+
+    // =========================================================================
+    // UI State & Rendering
+    // =========================================================================
+    const engine = new MatchingEngine();
+    let currentSide = "BUY";
+
+    function setSide(side) {
+      currentSide = side;
+      const buyBtn = document.getElementById("btn-side-buy");
+      const sellBtn = document.getElementById("btn-side-sell");
+      const submitBtn = document.getElementById("btn-submit");
+
+      if (side === "BUY") {
+        buyBtn.className = "side-btn active-buy";
+        sellBtn.className = "side-btn";
+        submitBtn.className = "submit-btn";
+        submitBtn.textContent = "Place BUY Limit Order";
+      } else {
+        buyBtn.className = "side-btn";
+        sellBtn.className = "side-btn active-sell";
+        submitBtn.className = "submit-btn sell-mode";
+        submitBtn.textContent = "Place SELL Limit Order";
+      }
+    }
+
+    function aggregateLevels(orders) {
+      const map = new Map();
+      for (const o of orders) {
+        const key = o.price.toFixed(2);
+        if (!map.has(key)) {
+          map.set(key, { price: o.price, totalQty: 0, count: 0 });
+        }
+        const entry = map.get(key);
+        entry.totalQty += o.remainingQty;
+        entry.count += 1;
+      }
+      return Array.from(map.values());
+    }
+
+    function renderAll() {
+      // 1. Update Top Metrics
+      document.getElementById("stat-bid").textContent = engine.bestBid !== null ? `$${engine.bestBid.toFixed(2)}` : "--";
+      document.getElementById("stat-ask").textContent = engine.bestAsk !== null ? `$${engine.bestAsk.toFixed(2)}` : "--";
+      document.getElementById("stat-spread").textContent = engine.spread !== null ? `$${engine.spread.toFixed(2)}` : "--";
+      document.getElementById("stat-last").textContent = engine.trades.length > 0 ? `$${engine.trades[0].price.toFixed(2)}` : "--";
+
+      // 2. Aggregate Book Levels
+      const askLevels = aggregateLevels(engine.asks).reverse(); // Highest price on top, Best Ask at bottom
+      const bidLevels = aggregateLevels(engine.bids);           // Best Bid on top, lowest price at bottom
+
+      const maxQty = Math.max(
+        100,
+        ...askLevels.map(l => l.totalQty),
+        ...bidLevels.map(l => l.totalQty)
+      );
+
+      // Render Asks
+      const asksEl = document.getElementById("asks-container");
+      if (askLevels.length === 0) {
+        asksEl.innerHTML = `<div class="empty-msg" style="padding: 1rem 0;">No Resting Asks</div>`;
+      } else {
+        asksEl.innerHTML = askLevels.map(lvl => {
+          const pct = Math.min(100, Math.round((lvl.totalQty / maxQty) * 100));
+          return `
+            <div class="ladder-row">
+              <div class="depth-bar ask-bar" style="width: ${pct}%"></div>
+              <span class="ask-text">$${lvl.price.toFixed(2)}</span>
+              <span class="text-right">${lvl.totalQty}</span>
+              <span class="text-right" style="color: var(--muted)">${lvl.count} ${lvl.count === 1 ? 'order' : 'orders'}</span>
+            </div>
+          `;
+        }).join("");
+      }
+
+      // Render Spread Divider
+      const spreadEl = document.getElementById("ladder-spread");
+      spreadEl.textContent = engine.spread !== null
+        ? `INSIDE SPREAD: $${engine.spread.toFixed(2)}`
+        : "SPREAD: UNDEFINED (ONE OR BOTH SIDES EMPTY)";
+
+      // Render Bids
+      const bidsEl = document.getElementById("bids-container");
+      if (bidLevels.length === 0) {
+        bidsEl.innerHTML = `<div class="empty-msg" style="padding: 1rem 0;">No Resting Bids</div>`;
+      } else {
+        bidsEl.innerHTML = bidLevels.map(lvl => {
+          const pct = Math.min(100, Math.round((lvl.totalQty / maxQty) * 100));
+          return `
+            <div class="ladder-row">
+              <div class="depth-bar bid-bar" style="width: ${pct}%"></div>
+              <span class="bid-text">$${lvl.price.toFixed(2)}</span>
+              <span class="text-right">${lvl.totalQty}</span>
+              <span class="text-right" style="color: var(--muted)">${lvl.count} ${lvl.count === 1 ? 'order' : 'orders'}</span>
+            </div>
+          `;
+        }).join("");
+      }
+
+      // 3. Render Execution Tape
+      document.getElementById("trade-count-badge").textContent = `${engine.trades.length} Trades`;
+      const tapeEl = document.getElementById("trade-tape");
+      if (engine.trades.length === 0) {
+        tapeEl.innerHTML = `<div class="empty-msg">No executions yet. Cross the spread to trigger a trade.</div>`;
+      } else {
+        tapeEl.innerHTML = engine.trades.map(t => `
+          <div class="tape-item">
+            <div>
+              <strong class="${t.aggressor === 'BUY' ? 'bid-text' : 'ask-text'}">$${t.price.toFixed(2)}</strong>
+              <span style="margin-left: 0.5rem;">${t.quantity} shs</span>
+            </div>
+            <div style="text-align: right; color: var(--muted); font-size: 0.74rem;">
+              <div>${t.buyerId} &harr; ${t.sellerId}</div>
+              <div>${t.time}</div>
+            </div>
+          </div>
+        `).join("");
+      }
+    }
+
+    function handleOrderSubmit(e) {
+      e.preventDefault();
+      const price = parseFloat(document.getElementById("input-price").value);
+      const qty = parseInt(document.getElementById("input-qty").value, 10);
+      if (isNaN(price) || isNaN(qty) || price <= 0 || qty <= 0) return;
+
+      engine.processOrder(currentSide, price, qty);
+      renderAll();
+    }
+
+    // =========================================================================
+    // Interactive Preset Scenarios
+    // =========================================================================
+    function seedDefaultBook() {
+      engine.bids = [];
+      engine.asks = [];
+      engine.trades = [];
+      engine.orderSeq = 1;
+      engine.tradeSeq = 1;
+
+      // Seed resting Bids ($100.00 down to $98.00)
+      engine.processOrder("BUY", 100.00, 75);
+      engine.processOrder("BUY", 100.00, 25); // Second FIFO order at $100
+      engine.processOrder("BUY", 99.00, 50);
+      engine.processOrder("BUY", 98.00, 120);
+
+      // Seed resting Asks ($101.00 up to $103.00)
+      engine.processOrder("SELL", 101.00, 100);
+      engine.processOrder("SELL", 102.00, 40);
+      engine.processOrder("SELL", 103.00, 80);
+
+      renderAll();
+    }
+
+    function scenarioAggressiveBuyer() {
+      // Buyer willing to pay $102 for 60 shares -> matches resting $101.00 Ask!
+      engine.processOrder("BUY", 102.00, 60);
+      renderAll();
+    }
+
+    function scenarioPartialSweep() {
+      // Aggressive buyer sweeps through multiple Ask levels up to $103.00
+      engine.processOrder("BUY", 103.00, 180);
+      renderAll();
+    }
+
+    function clearBook() {
+      engine.bids = [];
+      engine.asks = [];
+      engine.trades = [];
+      renderAll();
+    }
+
+    // Initialize with seeded order book on load
+    seedDefaultBook();
+  </script>
+</body>
+</html>

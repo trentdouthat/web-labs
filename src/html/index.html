@@ -12,6 +12,7 @@
       --accent: #38bdf8;
       --text: #f8fafc;
       --muted: #94a3b8;
+      --green: #22c55e;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -19,33 +20,39 @@
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       line-height: 1.6;
-      padding: 2rem 1rem;
       min-height: 100vh;
+      padding: 2rem 1.5rem;
     }
     .container {
-      max-width: 800px;
+      max-width: 760px;
       margin: 0 auto;
     }
-    .back-link {
-      display: inline-block;
-      margin-bottom: 1.5rem;
+    .nav-bar {
+      margin-bottom: 2rem;
+    }
+    .nav-bar a {
       color: var(--accent);
       text-decoration: none;
       font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
     }
-    .back-link:hover { text-decoration: underline; }
+    .nav-bar a:hover {
+      text-decoration: underline;
+    }
     header {
       margin-bottom: 2rem;
       border-bottom: 1px solid var(--border);
-      padding-bottom: 1.5rem;
+      padding-bottom: 1.25rem;
     }
-    h1 {
+    header h1 {
       font-size: 2rem;
-      color: var(--text);
+      font-weight: 700;
     }
-    p.lead {
+    header p.lead {
       color: var(--muted);
-      margin-top: 0.5rem;
+      margin-top: 0.35rem;
     }
     .project-list {
       display: flex;
@@ -56,13 +63,14 @@
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 1.25rem;
+      padding: 1.25rem 1.5rem;
       text-decoration: none;
       color: inherit;
-      transition: all 0.2s ease;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      transition: all 0.2s ease;
     }
     .project-card:hover {
       border-color: var(--accent);
@@ -71,21 +79,24 @@
     .project-card h2 {
       font-size: 1.15rem;
       color: var(--text);
+      margin-bottom: 0.25rem;
     }
     .project-card p {
-      font-size: 0.85rem;
+      font-size: 0.875rem;
       color: var(--muted);
-      margin-top: 0.25rem;
     }
     .badge {
       font-size: 0.75rem;
-      padding: 0.2rem 0.6rem;
-      border-radius: 9999px;
-      background: rgba(56, 189, 248, 0.15);
-      color: var(--accent);
       font-weight: 600;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--accent);
       white-space: nowrap;
-      margin-left: 1rem;
+    }
+    .badge-exchange {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--green);
     }
     .badge-php {
       background: rgba(168, 85, 247, 0.15);
@@ -95,15 +106,26 @@
 </head>
 <body>
   <div class="container">
-    <a href="/" class="back-link">&larr; Back to Main Portal</a>
+    <nav class="nav-bar">
+      <a href="/">&larr; Back to Main Portal</a>
+    </nav>
 
     <header>
       <h1>Interactive Web Labs</h1>
-      <p class="lead">Client-side experiments, utilities, and server-side integration demos.</p>
+      <p class="lead">Client-side simulations, exchange order book mechanics, and server environment tools.</p>
     </header>
 
     <main class="project-list">
-      <!-- Lab 1: RGB Viewer -->
+      <!-- Lab 1: Limit Order Book Matching Engine -->
+      <a href="order_book.html" class="project-card">
+        <div>
+          <h2>Limit Order Book &amp; Matching Engine</h2>
+          <p>Interactive price-time priority (FIFO) exchange simulator with live depth ladder, spread tracking, and execution tape.</p>
+        </div>
+        <span class="badge badge-exchange">Exchange Sim</span>
+      </a>
+
+      <!-- Lab 2: RGB Viewer -->
       <a href="rgb_viewer.html" class="project-card">
         <div>
           <h2>RGB Color Viewer</h2>
@@ -112,7 +134,7 @@
         <span class="badge">Client JS</span>
       </a>
 
-      <!-- Lab 2: User Info HTML -->
+      <!-- Lab 3: User Info HTML -->
       <a href="user_info.html" class="project-card">
         <div>
           <h2>Client Environment Inspector</h2>
@@ -121,10 +143,10 @@
         <span class="badge">Client JS</span>
       </a>
 
-      <!-- Lab 3: User Info PHP -->
+      <!-- Lab 4: User Info PHP -->
       <a href="user_info.php" class="project-card">
         <div>
-          <h2>Server Headers & Environment (PHP)</h2>
+          <h2>Server Headers &amp; Environment (PHP)</h2>
           <p>Server-side inspection of inbound HTTP request headers, TLS ciphers, and remote IP resolution.</p>
         </div>
         <span class="badge badge-php">PHP Backend</span>
