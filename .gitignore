@@ -1,0 +1,15 @@
+# Environment & Secret Files (CRITICAL: Never commit to Git)
+.env
+.env.*
+!.env.example
+
+# Editor and OS swap/metadata files
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Local deployment temporary artifacts
+*.log
