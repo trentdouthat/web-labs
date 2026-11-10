@@ -1,0 +1,44 @@
+name: Deploy Web Labs to Turbify
+
+# Trigger automatically whenever changes are pushed to main or master
+on:
+  push:
+    branches: [ main, master ]
+  # Allows triggering the deployment manually from the GitHub UI Actions tab
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: FTPS Sync & Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the repository files into the runner
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Step 2: Install lftp on the ephemeral Ubuntu runner
+      - name: Install lftp
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y lftp
+
+      # Step 3: Run the deployment synchronization via FTPS
+      - name: Execute FTPS Deployment
+        env:
+          TURBIFY_FTP_HOST: ${{ secrets.TURBIFY_FTP_HOST }}
+          TURBIFY_FTP_USER: ${{ secrets.TURBIFY_FTP_USER }}
+          TURBIFY_FTP_PASS: ${{ secrets.TURBIFY_FTP_PASS }}
+        run: |
+          # Re-use our robust deployment runner
+          chmod +x ./deploy_weblabs.sh
+          ./deploy_weblabs.sh
+
+      # Step 4: Audit & Status Summary
+      - name: Deployment Audit Summary
+        run: |
+          echo "=========================================================="
+          echo " Deployment to Turbify completed at: $(date -u)"
+          echo " Commit: ${{ github.sha }}"
+          echo " Author: ${{ github.actor }}"
+          echo "=========================================================="
