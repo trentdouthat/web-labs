@@ -45,7 +45,6 @@ echo "======================================================================"
 
 # ------------------------------------------------------------------------------
 # Stage 1: Upload Main Portal Landing Page
-# Attempts relative cd to public_html, but falls back gracefully if already jailed
 # ------------------------------------------------------------------------------
 echo -e "\n[STAGE 1/3] Uploading root landing page (index.html)..."
 lftp << LFTP_ROOT
@@ -54,7 +53,6 @@ set ftp:ssl-protect-data true
 set ssl:verify-certificate false
 open "${FTP_HOST}"
 user "${FTP_USER}" "${FTP_PASS}"
-# Attempt entering public_html if not already at document root
 cd ${REMOTE_DOC_ROOT} || true
 put "${LOCAL_SRC_DIR}/index.html" -o index.html
 quit
