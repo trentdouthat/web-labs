@@ -244,7 +244,7 @@
       h: 14,
       x: (V_WIDTH - 110) / 2,
       y: V_HEIGHT - 35,
-      speed: 8,
+      speed: 10,
       dx: 0
     };
 
@@ -253,7 +253,7 @@
       x: V_WIDTH / 2,
       y: paddle.y - 10,
       radius: 7,
-      speed: 6,
+      speed: 8.5,
       dx: 0,
       dy: 0,
       stuck: true
@@ -429,9 +429,10 @@
           const maxBounceAngle = Math.PI * 0.42; // ~75 degrees max
           const bounceAngle = hitPoint * maxBounceAngle;
 
-          const currentSpeed = Math.hypot(ball.dx, ball.dy);
-          ball.dx = currentSpeed * Math.sin(bounceAngle);
-          ball.dy = -currentSpeed * Math.cos(bounceAngle);
+          // Slight speed bump on paddle returns for arcade intensity (caps at 14)
+          ball.speed = Math.min(14, ball.speed + 0.1);
+          ball.dx = ball.speed * Math.sin(bounceAngle);
+          ball.dy = -ball.speed * Math.cos(bounceAngle);
           sfx.paddleHit();
         }
 
@@ -459,6 +460,9 @@
               createExplosion(b.x + b.w / 2, b.y + b.h / 2, b.color);
               sfx.brickHit(b.points);
 
+              // Progressive speed bump on brick destruction
+              ball.speed = Math.min(14, ball.speed + 0.05);
+
               // Determine bounce axis
               const prevX = ball.x - ball.dx;
               const prevY = ball.y - ball.dy;
@@ -477,7 +481,7 @@
           sfx.winSound();
           initBricks();
           resetBallOnPaddle();
-          ball.speed += 0.5;
+          ball.speed = Math.min(14, ball.speed + 1.0);
         }
 
         // Ball bottom pit collision (Loss of Life)
@@ -591,7 +595,7 @@
       sfx.init();
       score = 0;
       lives = 3;
-      ball.speed = 6;
+      ball.speed = 8.5;
       document.getElementById("score-val").textContent = score;
       document.getElementById("lives-val").textContent = lives;
       document.getElementById("start-overlay").style.display = "none";
