@@ -26,7 +26,6 @@ FTP_USER="${TURBIFY_FTP_USER:-}"
 FTP_PASS="${TURBIFY_FTP_PASS:-}"
 
 LOCAL_SRC_DIR="${SCRIPT_DIR}/src"
-REMOTE_DOC_ROOT="public_html"
 
 if [[ -z "${FTP_USER}" || -z "${FTP_PASS}" ]]; then
   echo "[-] ERROR: Missing FTPS credentials." >&2
@@ -44,7 +43,7 @@ echo " [WEB-LABS PROMOTION] Synchronizing to ${FTP_HOST}"
 echo "======================================================================"
 
 # ------------------------------------------------------------------------------
-# Stage 1: Upload Main Portal Landing Page
+# Stage 1: Upload Main Portal Landing Page to root public_html
 # ------------------------------------------------------------------------------
 echo -e "\n[STAGE 1/3] Uploading root landing page (index.html)..."
 lftp << LFTP_ROOT
@@ -53,30 +52,31 @@ set ftp:ssl-protect-data true
 set ssl:verify-certificate false
 open "${FTP_HOST}"
 user "${FTP_USER}" "${FTP_PASS}"
-cd ${REMOTE_DOC_ROOT} || true
+cd public_html || true
 put "${LOCAL_SRC_DIR}/index.html" -o index.html
 quit
 LFTP_ROOT
 echo "[+] Root index.html deployed successfully."
 
 # ------------------------------------------------------------------------------
-# Stage 2: Mirror Labs Subdirectory (src/html/ -> html/)
+# Stage 2: Mirror Labs Subdirectory (src/html/ -> public_html/html/)
 # ------------------------------------------------------------------------------
-echo -e "\n[STAGE 2/3] Mirroring labs directory (html/)..."
+echo -e "\n[STAGE 2/3] Mirroring labs directory (public_html/html/)..."
 lftp << LFTP_HTML
 set ftp:ssl-force true
 set ftp:ssl-protect-data true
 set ssl:verify-certificate false
 open "${FTP_HOST}"
 user "${FTP_USER}" "${FTP_PASS}"
-cd ${REMOTE_DOC_ROOT} || true
+cd public_html || true
 mkdir -p html
+cd html
 mirror --reverse \
        --verbose \
        --delete \
        --exclude-glob .git* \
        --exclude-glob *.swp \
-       "${LOCAL_SRC_DIR}/html" "html"
+       "${LOCAL_SRC_DIR}/html/" ./
 quit
 LFTP_HTML
 echo "[+] Labs directory synchronized."
